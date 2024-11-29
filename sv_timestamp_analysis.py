@@ -300,7 +300,7 @@ if __name__ == "__main__":
     parser.add_argument("--pub", "-p", required=True, type=str, help="SV publisher file")
     parser.add_argument("--hyp", "-y", type=str, help="SV hypervisor file")
     parser.add_argument("--sub", "-s", type=str, help="SV subscriber file")
-    parser.add_argument("--stream", "-S", default=0, type=parse_streams, help="SV subscriber file")
+    parser.add_argument("--stream", "-S", default=[0], type=parse_streams, help="Streams to look for. If not set, only stream 0 will be considered")
     parser.add_argument("--output", "-o", default=".", type=str, help="Output directory for the generated files.")
     parser.add_argument("--ttot", default=100, type=int, help="Total latency threshold.")
 
