@@ -42,6 +42,31 @@ def extract_sv(sv_file_path, streams):
 
     return sv
 
+def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_2):
+# Verify that both sv files are comparables. It means:
+# - contains the same number of streams
+# - contains the same number of iterations
+# If they do not have the same number of iterations, it can mean :
+# - packets reordering
+# - too many SV lost.
+# In both cases, the latency cannot be computed, because a received SV cannot
+# be linked correctly to a published SV.
+
+    # Check for same number of streams
+    if len(sv_data_1) != len(sv_data_2):
+        raise ValueError(
+            f"{sv_filename_1} has {len(sv_data_1)} stream, but {sv_filename_2} has {len(sv_data_2)}'"
+        )
+
+    # Check last iteration counter
+    for stream_data_1 in sv_data_1:
+        for stream_data_2 in sv_data_2:
+            # Compare last value of the iteration columns
+            if stream_data_1[0][-1] != stream_data_2[0][-1]:
+                raise ValueError(
+                    f"{sv_filename_1} and {sv_filename_2} don't have the same number of iterations"
+                )
+
 def detect_sv_drop(pub_sv, sub_sv, iteration_size=4000):
 # This function is used to detect if there are any missed SV's in
 # subscriber data, by testing the continuity of the SV counter of
@@ -58,10 +83,6 @@ def detect_sv_drop(pub_sv, sub_sv, iteration_size=4000):
 
         diffs = np.diff(sub_sv_cnt) - 1
         neg_diffs = np.where(diffs < 0)[0]
-
-        if neg_diffs.size > 0:
-            print("Fatal: SV disordered detected")
-            exit(1)
 
         if iteration_size-sub_sv_cnt[-1] > 0:
             diffs[-1] = iteration_size-sub_sv_cnt[-1] - 1
@@ -214,6 +235,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
 
         pub_sv = extract_sv(pub, streams)
         sub_sv = extract_sv(sub, streams)
+        verify_sv_logs_consistency(pub_sv, sub_sv, pub, sub)
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
@@ -236,6 +258,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
 
         if hyp is not None:
             hyp_sv = extract_sv(hyp, streams)
+            verify_sv_logs_consistency(pub_sv, hyp_sv, pub, hyp)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
             adoc_file.write(

@@ -59,6 +59,16 @@ based on the value of the `--ttot` argument (by default, 100µs).
 By default, only stream 0 is used to compute latencies. You can
 override this setting using `-S` or `--stream` argument.
 
+## Limitations
+
+The tool is incapable to compute latencies
+- if too many SV are lost between publisher and subscriber.
+- if some SV are received in an different order, that the one they were sent.
+If you are in one of these two cases, you will encounter the error :
+```bash
+ValueError: files don't have the same number of iterations
+```
+
 ## Release notes
 ### Version v0.1
 Initial release
