@@ -164,21 +164,20 @@ def save_latency_histogram(plot_type, values, streams, sub_name, output, subscri
 
     return filepath
 
-def generate_adoc(pub, hyp, sub, streams, output, ttot):
+def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
     if not os.path.exists(f'{output}/results'):
         os.makedirs(f'{output}/results')
 
     with open(f"{output}/results/latency_tests.adoc", "w", encoding="utf-8") as adoc_file:
-        subscriber_name = sub.split('/')[-1].split('_')[1].split('.')[0]
         subcriber_lines = textwrap.dedent(
             """
-            ===== Subscriber {_subcriber_name_}
+            ===== Subscriber {_subscriber_name_}
             {{set:cellbgcolor!}}
             |===
             |Number of IEC61850 Sampled Value |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
-            image::./histogram_total_stream_0_latency_{_subcriber_name_}.png[]
+            image::./histogram_total_stream_0_latency_{_subscriber_name_}.png[]
             |===
             |Number of IEC61850 Sampled Value |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
@@ -218,13 +217,13 @@ def generate_adoc(pub, hyp, sub, streams, output, ttot):
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
-        save_latency_histogram("latency", latencies, streams,"Total",output, subscriber_name)
+        save_latency_histogram("latency", latencies, streams,"Total",output, sub_name)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
                     _output_=output,
-                    _vm_=subscriber_name,
-                    _subcriber_name_=subscriber_name,
+                    _vm_=sub_name,
+                    _subscriber_name_=sub_name,
                     _stream_= get_stream_count(pub_sv),
                     _minlat_= compute_min(latencies[0]),
                     _maxlat_= maxlat,
@@ -236,14 +235,13 @@ def generate_adoc(pub, hyp, sub, streams, output, ttot):
         )
 
         if hyp is not None:
-            hypervisor_name = sub.split('/')[-1].split('_')[1].split('.')[0]
-            hyp_sv = extract_sv(hyp)
+            hyp_sv = extract_sv(hyp, streams)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
             adoc_file.write(
                     hypervisor_lines.format(
                         _output_=output,
-                        _hypervisor_name_=hypervisor_name,
+                        _hypervisor_name_=hyp_name,
                         _stream_= get_stream_count(hyp_sv),
                         _minlat_= compute_min(hyp_latencies[0]),
                         _maxlat_= maxlat,
@@ -299,10 +297,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Latency tests report in AsciiDoc format.")
     parser.add_argument("--pub", "-p", required=True, type=str, help="SV publisher file")
     parser.add_argument("--hyp", "-y", type=str, help="SV hypervisor file")
+    parser.add_argument("--hypervisor_name", type=str, help="Hypervisor name that will appear in report and graph. If not set, it will be the name of SV hypervisor file")
     parser.add_argument("--sub", "-s", type=str, help="SV subscriber file")
+    parser.add_argument("--subscriber_name", type=str, help="Subscriber name that will appear in report and graph. If not set, it will be the name of SV subscriber file")
     parser.add_argument("--stream", "-S", default=[0], type=parse_streams, help="Streams to look for. If not set, only stream 0 will be considered")
     parser.add_argument("--output", "-o", default=".", type=str, help="Output directory for the generated files.")
     parser.add_argument("--ttot", default=100, type=int, help="Total latency threshold.")
 
     args = parser.parse_args()
-    generate_adoc(args.pub, args.hyp, args.sub, args.stream, args.output, args.ttot)
+    generate_adoc(args.pub, args.hyp, args.sub, args.stream, args.hypervisor_name, args.subscriber_name, args.output, args.ttot)
