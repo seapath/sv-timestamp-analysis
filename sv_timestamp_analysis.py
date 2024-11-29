@@ -278,31 +278,82 @@ def parse_streams(value):
       - Single value: '0' or '3'
       - Range of values: '0..3'
     """
-    if '..' in value:
-        start, end = value.split('..')
+    if ".." in value:
+        start, end = value.split("..")
         try:
             start, end = int(start), int(end)
             if start > end:
-                raise argparse.ArgumentTypeError(f"Fatal: invalid stream range: {value}. Start of range must be less than end.")
+                raise argparse.ArgumentTypeError(
+                    f"Fatal: invalid stream range: {value}. Start of range must be less than end."
+                )
             return list(range(start, end + 1))
         except ValueError:
-            raise argparse.ArgumentTypeError(f"Fatal: invalid stream format: {value}. Use 'start..end' format.")
+            raise argparse.ArgumentTypeError(
+                f"Fatal: invalid stream format: {value}. Use 'start..end' format."
+            )
     else:
         try:
             return [int(value)]
         except ValueError:
-            raise argparse.ArgumentTypeError(f"Fatal: invalid stream stream value: {value}. Must be an integer or a range.")
+            raise argparse.ArgumentTypeError(
+                f"Fatal: invalid stream stream value: {value}. Must be an integer or a range."
+            )
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate Latency tests report in AsciiDoc format.")
-    parser.add_argument("--pub", "-p", required=True, type=str, help="SV publisher file")
+    parser = argparse.ArgumentParser(
+        description="Compute latencies from sv_timestamp_logger and generate latency tests report in AsciiDoc format"
+    )
+    parser.add_argument(
+        "--pub", "-p", required=True, type=str, help="SV publisher file"
+    )
     parser.add_argument("--hyp", "-y", type=str, help="SV hypervisor file")
-    parser.add_argument("--hypervisor_name", type=str, help="Hypervisor name that will appear in report and graph. If not set, it will be the name of SV hypervisor file")
     parser.add_argument("--sub", "-s", type=str, help="SV subscriber file")
-    parser.add_argument("--subscriber_name", type=str, help="Subscriber name that will appear in report and graph. If not set, it will be the name of SV subscriber file")
-    parser.add_argument("--stream", "-S", default=[0], type=parse_streams, help="Streams to look for. If not set, only stream 0 will be considered")
-    parser.add_argument("--output", "-o", default=".", type=str, help="Output directory for the generated files.")
-    parser.add_argument("--ttot", default=100, type=int, help="Total latency threshold.")
+    parser.add_argument(
+        "--hypervisor_name",
+        type=str,
+        help="Hypervisor name that will appear in report and graph. If not set, it will be the name of SV hypervisor file",
+    )
+    parser.add_argument(
+        "--subscriber_name",
+        type=str,
+        help="Subscriber name that will appear in report and graph. If not set, it will be the name of SV subscriber file",
+    )
+    parser.add_argument(
+        "--stream",
+        "-S",
+        default=[0],
+        type=parse_streams,
+        help="Streams to consider. If not set, only stream 0 will be considered",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=".",
+        type=str,
+        help="Output directory for the generated files.",
+    )
+    parser.add_argument(
+        "--max_latency", "-m", default=100, type=int, help="Maximum latency threshold"
+    )
 
     args = parser.parse_args()
-    generate_adoc(args.pub, args.hyp, args.sub, args.stream, args.hypervisor_name, args.subscriber_name, args.output, args.ttot)
+    if not args.hypervisor_name:
+        hyp_name=args.hyp
+    else:
+        hyp_name=args.hypervisor_name
+    if not args.subscriber_name:
+        sub_name=args.hyp
+    else:
+        sub_name=args.hypervisor_name
+
+    generate_adoc(
+        args.pub,
+        args.hyp,
+        args.sub,
+        args.stream,
+        hyp_name,
+        sub_name,
+        args.output,
+        args.max_latency,
+    )
