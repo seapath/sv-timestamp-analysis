@@ -59,13 +59,12 @@ def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_
         )
 
     # Check last iteration counter
-    for stream_data_1 in sv_data_1:
-        for stream_data_2 in sv_data_2:
-            # Compare last value of the iteration columns
-            if stream_data_1[0][-1] != stream_data_2[0][-1]:
-                raise ValueError(
-                    f"{sv_filename_1} and {sv_filename_2} don't have the same number of iterations"
-                )
+    for stream in range(0, len(sv_data_1)):
+        # Compare last value of the iteration columns
+        if sv_data_1[stream][0][-1] != sv_data_2[stream][0][-1]:
+            raise ValueError(
+                f"{sv_filename_1} and {sv_filename_2} don't have the same number of iterations"
+            )
 
 def detect_sv_drop(pub_sv, sub_sv, iteration_size=4000):
 # This function is used to detect if there are any missed SV's in
