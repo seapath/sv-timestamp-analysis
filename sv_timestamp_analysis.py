@@ -7,6 +7,7 @@ import argparse
 import matplotlib.pyplot as plt
 import textwrap
 import numpy as np
+import pandas as pd
 
 GREEN_COLOR = "#90EE90"
 RED_COLOR = "#F08080"
@@ -66,81 +67,44 @@ def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_
                 f"{sv_filename_1} and {sv_filename_2} don't have the same number of iterations"
             )
 
-def detect_sv_drop(pub_sv, sub_sv, iteration_size=4000):
-# This function is used to detect if there are any missed SV's in
-# subscriber data, by testing the continuity of the SV counter of
-# subscriber data.
 
-    total_sv_drops = 0
-    pub_sv_iter = np.sort(np.unique(pub_sv[0].astype(int)))
+def handle_sv_drop(pub_stream, sub_stream):
+    # Compute the latency on a stream with sv lost
+    # All the magic remains in the pandas dataframe merge function using the
+    # inner method to combine tables. This function handles the missalignement
+    # between subscriber and publisher values.
+    # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
 
-    for iteration in range(len(pub_sv_iter)):
-        sub_sv_current_iter = np.where(sub_sv[0].astype(int) == iteration)[0]
-        sub_sv_start_index = sub_sv_current_iter[0]
-        sub_sv_end_index = sub_sv_current_iter[-1]+1
-        sub_sv_cnt = sub_sv[1][sub_sv_start_index:sub_sv_end_index]
+    columns = ["iteration", "counter", "time"]
+    pub_data = pd.DataFrame(pub_stream, index=columns).T
+    sub_data = pd.DataFrame(sub_stream, index=columns).T
 
-        diffs = np.diff(sub_sv_cnt) - 1
-        neg_diffs = np.where(diffs < 0)[0]
+    merged_data = pd.merge(pub_data, sub_data, on=["iteration", "counter"], how="inner")
+    latencies = merged_data["time_y"] - merged_data["time_x"]
 
-        if iteration_size-sub_sv_cnt[-1] > 0:
-            diffs[-1] = iteration_size-sub_sv_cnt[-1] - 1
-        if sub_sv_cnt[0] > 0:
-            diffs[0] = sub_sv_cnt[0] - 1
+    return np.array(latencies)
 
-        discontinuities = np.where(diffs > 0)[0]
-
-        for disc in discontinuities:
-            num_lost_values = diffs[disc]
-
-            if num_lost_values == diffs[-1]:
-                disc += 1
-            if disc == 0:
-                disc += -1
-                num_lost_values += 1
-            for _ in range(num_lost_values):
-                pub_sv[0] = np.delete(pub_sv[0], sub_sv_start_index + disc + 1 )
-                pub_sv[1] = np.delete(pub_sv[1], sub_sv_start_index + disc + 1 )
-                pub_sv[2] = np.delete(pub_sv[2], sub_sv_start_index + disc + 1 )
-            total_sv_drops += num_lost_values
-
-    return total_sv_drops
-
-def investigate_array_differences(array1, array2):
-    # This function checks if pub and sub counter are well aligned.
-    len1 = len(array1)
-    len2 = len(array2)
-
-    min_len = min(len1, len2)
-    max_len = max(len1, len2)
-
-    diff_indices = np.where(array1[:min_len] != array2[:min_len])[0]
-    diffs = [(i, array1[i], array2[i]) for i in diff_indices]
-
-    if len1 > len2:
-        extra_elements = array1[len2:max_len]
-        extra_info = {'array': 'array1', 'indices': np.arange(len2, max_len), 'values': extra_elements}
-    elif len2 > len1:
-        extra_elements = array2[len1:max_len]
-        extra_info = {'array': 'array2', 'indices': np.arange(len1, max_len), 'values': extra_elements}
-    else:
-        extra_info = None
-
-    return diffs, extra_info
 
 def compute_latency(pub_sv, sub_sv):
-    latencies = [[0]] * len(pub_sv)
-    sv_drop = 0
-    for stream in range(0, len(pub_sv)):
-        if len(pub_sv[stream][1]) != len(sub_sv[stream][1]):
-            sv_drop = detect_sv_drop(pub_sv[stream], sub_sv[stream])
-            diffs, extra_info = investigate_array_differences(pub_sv[stream][1], sub_sv[stream][1])
 
-            if diffs:
-                print("Warning: SV counter misalignment between pub and sub")
-            if extra_info:
-                print(f"Warning: Extra elements in {extra_info['array']} at indices {extra_info['indices']}: {extra_info['values']}")
-        latencies[stream] = sub_sv[stream][2] - pub_sv[stream][2]
+    latencies = [[]] * len(pub_sv)
+    sv_drop = 0
+
+    for stream in range(0, len(pub_sv)):
+
+        pub_sv_stream = pub_sv[stream]
+        sub_sv_stream = sub_sv[stream]
+        sv_drop_stream = abs(len(pub_sv_stream[0]) - len(sub_sv_stream[0]))
+        sv_drop += sv_drop_stream
+
+        if sv_drop_stream > 0:
+            # if sv drop is detected on this stream, pandas will be used to
+            # reconstruct the link between data and compute the latency
+            # It will take additionnal times to convert from numpy to pandas,
+            # so this is only done when there is sv drop.
+            latencies[stream] = handle_sv_drop(pub_sv_stream, sub_sv_stream)
+        else:
+            latencies[stream] = sub_sv_stream[2] - pub_sv_stream[2]
 
     return latencies, sv_drop
 
