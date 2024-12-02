@@ -1,0 +1,6 @@
+[project]
+org='seapath'
+name='sv-timestamp-analysis'
+
+[build]
+command='python3 sv_timestamp_analysis.py'

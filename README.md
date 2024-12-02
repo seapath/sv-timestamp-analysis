@@ -30,9 +30,12 @@ report summarizing the latencies of the SVs recorded.
 Following Python packages are needed:
 ```bash
 pip install \
+  pandas \
   numpy \
   matplotlib
 ```
+
+A [cqfd](https://github.com/savoirfairelinux/cqfd) support is also provided.
 
 ## Usage
 
