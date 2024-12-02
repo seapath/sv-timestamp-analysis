@@ -116,7 +116,7 @@ def compute_pacing(sv):
     return pacing
 
 def get_stream_count(pub_sv):
-    return np.unique(pub_sv).size
+    return len(pub_sv)
 
 def compute_min(values):
     return np.min(values) if values.size > 0 else None
@@ -158,12 +158,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
             ===== Subscriber {_subscriber_name_}
             {{set:cellbgcolor!}}
             |===
-            |Number of IEC61850 Sampled Value |Minimum latency |Maximum latency |Average latency
+            |Number of IEC61850 Sampled Value Streams |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
             image::./histogram_total_stream_0_latency_{_subscriber_name_}.png[]
             |===
-            |Number of IEC61850 Sampled Value |Minimum pacing |Maximum pacing |Average pacing
+            |Number of IEC61850 Sampled Value Streams |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
@@ -174,12 +174,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
             ===== Hypervisor {_hypervisor_name_}
             {{set:cellbgcolor!}}
             |===
-            |Number of IEC61850 Sampled Value |Minimum latency |Maximum latency |Average latency
+            |Number of IEC61850 Sampled Value Streams |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
             image::./histogram_total_stream_0_latency_{_hypervisor_name_}.png[]
             |===
-            |Number of IEC61850 Sampled Value |Minimum pacing |Maximum pacing |Average pacing
+            |Number of IEC61850 Sampled Value Streams |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
