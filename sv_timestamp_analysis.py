@@ -202,7 +202,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
-        save_latency_histogram("latency", latencies, streams,"Total",output, sub_name)
+        save_latency_histogram("latency", latencies, streams,"total",output, sub_name)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
