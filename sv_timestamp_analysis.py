@@ -329,9 +329,9 @@ if __name__ == "__main__":
     else:
         hyp_name=args.hypervisor_name
     if not args.subscriber_name:
-        sub_name=args.hyp
+        sub_name=args.sub
     else:
-        sub_name=args.hypervisor_name
+        sub_name=args.subscriber_name
 
     generate_adoc(
         args.pub,
