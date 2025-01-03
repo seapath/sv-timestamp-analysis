@@ -130,7 +130,7 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
-def save_latency_histogram(plot_type, values, streams, sub_name, output, subscriber):
+def save_latency_histogram(plot_type, values, streams, sub_name, output, subscriber, threshold=0):
 
     for stream in range(0, len(streams)):
         plt.hist(values[stream], bins=20, alpha=0.7)
@@ -140,6 +140,10 @@ def save_latency_histogram(plot_type, values, streams, sub_name, output, subscri
         plt.yscale('log')
         plt.title(f"{sub_name} {plot_type} Histogram")
 
+        if threshold > 0:
+            plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
+            plt.legend()
+
         filename = f"histogram_{sub_name}_stream_{stream}_{plot_type}_{subscriber}.png"
         filepath = os.path.realpath(f"{output}/results/{filename}")
         plt.savefig(filepath)
@@ -148,7 +152,7 @@ def save_latency_histogram(plot_type, values, streams, sub_name, output, subscri
 
     return filepath
 
-def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
+def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot, display_threshold):
     if not os.path.exists(f'{output}/results'):
         os.makedirs(f'{output}/results')
 
@@ -202,7 +206,10 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot):
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
-        save_latency_histogram("latency", latencies, streams,"total",output, sub_name)
+        if display_threshold:
+            save_latency_histogram("latency", latencies, streams,"total",output, sub_name, ttot)
+        else:
+            save_latency_histogram("latency", latencies, streams,"total",output, sub_name)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
@@ -322,6 +329,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_latency", "-m", default=100, type=int, help="Maximum latency threshold"
     )
+    parser.add_argument(
+        "--display_max_latency",
+        action="store_true",
+        help="Display max latency threshold on histograms if set"
+    )
 
     args = parser.parse_args()
     if not args.hypervisor_name:
@@ -342,4 +354,5 @@ if __name__ == "__main__":
         sub_name,
         args.output,
         args.max_latency,
+        args.display_max_latency,
     )
