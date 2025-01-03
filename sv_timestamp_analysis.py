@@ -152,7 +152,7 @@ def save_latency_histogram(plot_type, values, streams, sub_name, output, subscri
 
     return filepath
 
-def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot, display_threshold):
+def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latency_threshold, display_threshold):
     if not os.path.exists(f'{output}/results'):
         os.makedirs(f'{output}/results')
 
@@ -207,7 +207,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot, disp
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
         if display_threshold:
-            save_latency_histogram("latency", latencies, streams,"total",output, sub_name, ttot)
+            save_latency_histogram("latency", latencies, streams,"total",output, sub_name, max_latency_threshold)
         else:
             save_latency_histogram("latency", latencies, streams,"total",output, sub_name)
         maxlat= compute_max(latencies[0])
@@ -245,10 +245,10 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot, disp
                     )
             )
 
-        if maxlat < ttot:
+        if maxlat < max_latency_threshold:
             adoc_file.write(
                 pass_line.format(
-                    _limit_=ttot,
+                    _limit_=max_latency_threshold,
                     _result_="PASS",
                     _color_=GREEN_COLOR,
                     _sv_dropped_=total_sv_drop
@@ -257,7 +257,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, ttot, disp
         else:
             adoc_file.write(
                 pass_line.format(
-                    _limit_=ttot,
+                    _limit_=max_latency_threshold,
                     _result_="FAILED",
                     _color_=RED_COLOR,
                     _sv_dropped_=total_sv_drop
