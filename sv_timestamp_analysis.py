@@ -41,7 +41,7 @@ def extract_sv(sv_file_path, streams):
 
         stream_number += 1
 
-    return sv
+    return sv, stream_names
 
 def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_2):
 # Verify that both sv files are comparables. It means:
@@ -115,9 +115,6 @@ def compute_pacing(sv):
         pacing[stream] = np.diff(sv[stream][2])
     return pacing
 
-def get_stream_count(pub_sv):
-    return len(pub_sv)
-
 def compute_min(values):
     return np.min(values) if values.size > 0 else None
 
@@ -162,12 +159,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             ===== Subscriber {_subscriber_name_}
             {{set:cellbgcolor!}}
             |===
-            |Number of IEC61850 Sampled Value Streams |Minimum latency |Maximum latency |Average latency
+            |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
             image::./histogram_total_stream_0_latency_{_subscriber_name_}.png[]
             |===
-            |Number of IEC61850 Sampled Value Streams |Minimum pacing |Maximum pacing |Average pacing
+            |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
@@ -178,12 +175,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             ===== Hypervisor {_hypervisor_name_}
             {{set:cellbgcolor!}}
             |===
-            |Number of IEC61850 Sampled Value Streams |Minimum latency |Maximum latency |Average latency
+            |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
             image::./histogram_total_stream_0_latency_{_hypervisor_name_}.png[]
             |===
-            |Number of IEC61850 Sampled Value Streams |Minimum pacing |Maximum pacing |Average pacing
+            |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
@@ -200,8 +197,8 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             """
         )
 
-        pub_sv = extract_sv(pub, streams)
-        sub_sv = extract_sv(sub, streams)
+        pub_sv, _ = extract_sv(pub, streams)
+        sub_sv, sub_stream_names = extract_sv(sub, streams)
         verify_sv_logs_consistency(pub_sv, sub_sv, pub, sub)
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
@@ -216,7 +213,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                     _output_=output,
                     _vm_=sub_name,
                     _subscriber_name_=sub_name,
-                    _stream_= get_stream_count(pub_sv),
+                    _stream_= sub_stream_names[0],
                     _minlat_= compute_min(latencies[0]),
                     _maxlat_= maxlat,
                     _avglat_= compute_average(latencies[0]),
@@ -227,7 +224,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         )
 
         if hyp is not None:
-            hyp_sv = extract_sv(hyp, streams)
+            hyp_sv, hyp_stream_names = extract_sv(hyp, streams)
             verify_sv_logs_consistency(pub_sv, hyp_sv, pub, hyp)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
@@ -235,7 +232,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                     hypervisor_lines.format(
                         _output_=output,
                         _hypervisor_name_=hyp_name,
-                        _stream_= get_stream_count(hyp_sv),
+                        _stream_= hyp_stream_names[0],
                         _minlat_= compute_min(hyp_latencies[0]),
                         _maxlat_= maxlat,
                         _avglat_= compute_average(hyp_latencies[0]),
