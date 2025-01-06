@@ -129,8 +129,8 @@ def compute_neglat(values):
 
 def save_latency_histogram(values, streams, sub_name, output, threshold=0):
 
-    for stream in range(0, len(streams)):
-        plt.hist(values[stream], bins=20, alpha=0.7)
+    for stream, value in zip(streams, values):
+        plt.hist(value, bins=20, alpha=0.7)
 
         plt.xlabel(f"Latency (us)")
         plt.ylabel("Occurrences")
