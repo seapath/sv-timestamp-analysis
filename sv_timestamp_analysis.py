@@ -127,7 +127,7 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
-def save_latency_histogram(values, streams, sub_name, output, threshold=0):
+def save_latency_histogram(values, streams, stream_names, sub_name, output, threshold=0):
 
     for stream, value in zip(streams, values):
         plt.hist(value, bins=20, alpha=0.7)
@@ -135,7 +135,7 @@ def save_latency_histogram(values, streams, sub_name, output, threshold=0):
         plt.xlabel(f"Latency (us)")
         plt.ylabel("Occurrences")
         plt.yscale('log')
-        plt.title(f"{sub_name} latency histogram")
+        plt.title(f"{sub_name} SV stream {stream_names[stream]} latency histogram")
 
         if threshold > 0:
             plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
@@ -204,9 +204,9 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
         if display_threshold:
-            save_latency_histogram(latencies, streams, sub_name, output, max_latency_threshold)
+            save_latency_histogram(latencies, streams, sub_stream_names, sub_name, output, max_latency_threshold)
         else:
-            save_latency_histogram(latencies, streams, sub_name, output)
+            save_latency_histogram(latencies, streams, sub_stream_names, sub_name, output)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
