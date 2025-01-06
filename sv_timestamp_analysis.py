@@ -211,7 +211,6 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         adoc_file.write(
                 subcriber_lines.format(
                     _output_=output,
-                    _vm_=sub_name,
                     _subscriber_name_=sub_name,
                     _stream_= sub_stream_names[0],
                     _minlat_= compute_min(latencies[0]),
