@@ -160,12 +160,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             {{set:cellbgcolor!}}
             |===
             |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
-            |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
+            |{_stream_id_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
-            image::./histogram_{_subscriber_name_}_stream_0_latency.png[]
+            image::./histogram_{_subscriber_name_}_stream_{_stream_}_latency.png[]
             |===
             |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
-            |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
+            |{_stream_id_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
         )
@@ -176,12 +176,12 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             {{set:cellbgcolor!}}
             |===
             |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
-            |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
+            |{_stream_id_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
-            image::./histogram_{_hypervisor_name_}_stream_0_latency.png[]
+            image::./histogram_{_hypervisor_name_}_stream_{_stream_}_latency.png[]
             |===
             |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
-            |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
+            |{_stream_id_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
             |===
             """
         )
@@ -212,7 +212,8 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                 subcriber_lines.format(
                     _output_=output,
                     _subscriber_name_=sub_name,
-                    _stream_= sub_stream_names[0],
+                    _stream_id_= sub_stream_names[0],
+                    _stream_ = streams[0],
                     _minlat_= compute_min(latencies[0]),
                     _maxlat_= maxlat,
                     _avglat_= compute_average(latencies[0]),
@@ -231,7 +232,8 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                     hypervisor_lines.format(
                         _output_=output,
                         _hypervisor_name_=hyp_name,
-                        _stream_= hyp_stream_names[0],
+                        _stream_id_= hyp_stream_names[0],
+                        _stream_ = streams[0],
                         _minlat_= compute_min(hyp_latencies[0]),
                         _maxlat_= maxlat,
                         _avglat_= compute_average(hyp_latencies[0]),
