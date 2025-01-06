@@ -127,7 +127,7 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
-def save_latency_histogram(plot_type, values, streams, sub_name, output, subscriber, threshold=0):
+def save_latency_histogram(plot_type, values, streams, sub_name, output, threshold=0):
 
     for stream in range(0, len(streams)):
         plt.hist(values[stream], bins=20, alpha=0.7)
@@ -135,13 +135,13 @@ def save_latency_histogram(plot_type, values, streams, sub_name, output, subscri
         plt.xlabel(f"{plot_type} (us)")
         plt.ylabel("Occurrences")
         plt.yscale('log')
-        plt.title(f"{sub_name} {plot_type} Histogram")
+        plt.title(f"{sub_name} {plot_type} histogram")
 
         if threshold > 0:
             plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
             plt.legend()
 
-        filename = f"histogram_{sub_name}_stream_{stream}_{plot_type}_{subscriber}.png"
+        filename = f"histogram_{sub_name}_stream_{stream}_{plot_type}.png"
         filepath = os.path.realpath(f"{output}/results/{filename}")
         plt.savefig(filepath)
         print(f"Histogram saved as {filename}.")
@@ -162,7 +162,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
-            image::./histogram_total_stream_0_latency_{_subscriber_name_}.png[]
+            image::./histogram_{_subscriber_name_}_stream_0_latency.png[]
             |===
             |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
@@ -178,7 +178,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             |IEC61850 Sampled Value Stream |Minimum latency |Maximum latency |Average latency
             |{_stream_} |{_minlat_} us |{_maxlat_} us |{_avglat_} us
             |===
-            image::./histogram_total_stream_0_latency_{_hypervisor_name_}.png[]
+            image::./histogram_{_hypervisor_name_}_stream_0_latency.png[]
             |===
             |IEC61850 Sampled Value Stream |Minimum pacing |Maximum pacing |Average pacing
             |{_stream_} |{_minpace_} us |{_maxpace_} us |{_avgpace_} us
@@ -204,9 +204,9 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
         if display_threshold:
-            save_latency_histogram("latency", latencies, streams,"total",output, sub_name, max_latency_threshold)
+            save_latency_histogram("latency", latencies, streams, sub_name, output, max_latency_threshold)
         else:
-            save_latency_histogram("latency", latencies, streams,"total",output, sub_name)
+            save_latency_histogram("latency", latencies, streams, sub_name, output)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
