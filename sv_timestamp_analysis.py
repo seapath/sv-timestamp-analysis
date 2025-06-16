@@ -137,7 +137,7 @@ def save_latency_histogram(values, streams, sub_name, output, threshold=0):
         plt.xlabel(f"Latency (us)")
         plt.ylabel("Occurrences")
         plt.yscale('log')
-        plt.title(f"{sub_name} SV stream {stream} latency histogram")
+        plt.title(f"{sub_name} SV stream 0x{stream:04x} latency histogram")
 
         if threshold > 0:
             plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
@@ -268,13 +268,13 @@ def parse_streams(value):
     """
     Parses the `streams` argument to handle single values or ranges of values.
     Example values:
-      - Single value: '0' or '3'
-      - Range of values: '0..3'
+      - Single value: '0', '3' or '40ff'
+      - Range of values: '0..3' or '4000..40ff'
     """
     if ".." in value:
         start, end = value.split("..")
         try:
-            start, end = int(start), int(end)
+            start, end = int(start, 16), int(end, 16)
             if start > end:
                 raise argparse.ArgumentTypeError(
                     f"Fatal: invalid stream range: {value}. Start of range must be less than end."
@@ -286,7 +286,7 @@ def parse_streams(value):
             )
     else:
         try:
-            return [int(value)]
+            return [int(value, 16)]
         except ValueError:
             raise argparse.ArgumentTypeError(
                 f"Fatal: invalid stream stream value: {value}. Must be an integer or a range."
@@ -317,7 +317,7 @@ if __name__ == "__main__":
         "-S",
         default=[0],
         type=parse_streams,
-        help="Streams (SVID) to consider. If not set, only stream 0 will be considered",
+        help="Streams (SVID) to consider as hexadecimal (e.g. '0', '3', '4000..40ff'). If not set, only stream 0 will be considered",
     )
     parser.add_argument(
         "--output",
