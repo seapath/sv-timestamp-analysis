@@ -27,11 +27,7 @@ def extract_sv(sv_file_path, streams):
     sv_timestamps = np.array([int(item.split(":")[3]) for item in sv_content])
 
     for stream in streams:
-        try:
-            id_occurrences = np.where(sv_id == stream_names[stream])
-        except IndexError as e:
-            print(f"Fatal: couldn't extract SV streams; is the -S argument correct? ({e})")
-            exit(1)
+        id_occurrences = np.where(sv_id == f"{stream:04x}")
 
         sv_it_occurrences = sv_it[id_occurrences]
         sv_cnt_occurrences = sv_cnt[id_occurrences]
@@ -40,6 +36,12 @@ def extract_sv(sv_file_path, streams):
         sv[stream_number] = [sv_it_occurrences, sv_cnt_occurrences, sv_timestamps_occurrences]
 
         stream_number += 1
+
+    if stream_number == 0:
+        print(f"Fatal: no streams found in {sv_file_path}."
+              "Is the file empty or is the -S argument correct?")
+        exit(1)
+
 
     return sv, stream_names
 
@@ -127,7 +129,7 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
-def save_latency_histogram(values, streams, stream_names, sub_name, output, threshold=0):
+def save_latency_histogram(values, streams, sub_name, output, threshold=0):
 
     for stream, value in zip(streams, values):
         plt.hist(value, bins=20, alpha=0.7)
@@ -135,7 +137,7 @@ def save_latency_histogram(values, streams, stream_names, sub_name, output, thre
         plt.xlabel(f"Latency (us)")
         plt.ylabel("Occurrences")
         plt.yscale('log')
-        plt.title(f"{sub_name} SV stream {stream_names[stream]} latency histogram")
+        plt.title(f"{sub_name} SV stream {stream} latency histogram")
 
         if threshold > 0:
             plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
@@ -204,9 +206,9 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
         if display_threshold:
-            save_latency_histogram(latencies, streams, sub_stream_names, sub_name, output, max_latency_threshold)
+            save_latency_histogram(latencies, streams, sub_name, output, max_latency_threshold)
         else:
-            save_latency_histogram(latencies, streams, sub_stream_names, sub_name, output)
+            save_latency_histogram(latencies, streams, sub_name, output)
         maxlat= compute_max(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
@@ -315,7 +317,7 @@ if __name__ == "__main__":
         "-S",
         default=[0],
         type=parse_streams,
-        help="Streams to consider. If not set, only stream 0 will be considered",
+        help="Streams (SVID) to consider. If not set, only stream 0 will be considered",
     )
     parser.add_argument(
         "--output",
