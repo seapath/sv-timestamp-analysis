@@ -188,13 +188,23 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             """
         )
 
-        pass_line = textwrap.dedent(
+        pass_line_max_latency = textwrap.dedent(
             """
             [cols="3,1",frame=all, grid=all]
             |===
             |Max latency < {_limit_} us
             |{{set:cellbgcolor:{_color_}}}{_result_}
             |{{set:cellbgcolor:transparent}}SV dropped|{_sv_dropped_}
+            |===
+            """
+        )
+
+        pass_line_min_latency = textwrap.dedent(
+            """
+            [cols="3,1",frame=all, grid=all]
+            |===
+            |Min latency > 0 us
+            |{{set:cellbgcolor:{_color_}}}{_result_}
             |===
             """
         )
@@ -210,13 +220,14 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         else:
             save_latency_histogram(latencies, streams, sub_name, output)
         maxlat= compute_max(latencies[0])
+        minlat = compute_min(latencies[0])
         adoc_file.write(
                 subcriber_lines.format(
                     _output_=output,
                     _subscriber_name_=sub_name,
                     _stream_id_= sub_stream_names[0],
                     _stream_ = streams[0],
-                    _minlat_= compute_min(latencies[0]),
+                    _minlat_= minlat,
                     _maxlat_= maxlat,
                     _avglat_= compute_average(latencies[0]),
                     _minpace_= compute_min(sub_pacing[0]),
@@ -247,7 +258,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
         if maxlat < max_latency_threshold:
             adoc_file.write(
-                pass_line.format(
+                pass_line_max_latency.format(
                     _limit_=max_latency_threshold,
                     _result_="PASS",
                     _color_=GREEN_COLOR,
@@ -256,11 +267,26 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             )
         else:
             adoc_file.write(
-                pass_line.format(
+                pass_line_max_latency.format(
                     _limit_=max_latency_threshold,
                     _result_="FAILED",
                     _color_=RED_COLOR,
                     _sv_dropped_=total_sv_drop
+                )
+            )
+
+        if minlat > 0:
+            adoc_file.write(
+                pass_line_min_latency.format(
+                    _result_="PASS",
+                    _color_=GREEN_COLOR,
+                )
+            )
+        else:
+            adoc_file.write(
+                pass_line_min_latency.format(
+                    _result_="FAILED",
+                    _color_=RED_COLOR,
                 )
             )
 
