@@ -89,39 +89,6 @@ class SvExtractor:
         return sv, stream_names
 
 
-def extract_sv(sv_file_path, streams):
-    stream_number = 0
-    with open(f"{sv_file_path}", "r", encoding="utf-8") as sv_file:
-        sv_content = sv_file.read().splitlines()
-
-    sv_id = np.array([str(item.split(":")[1]) for item in sv_content])
-    stream_names = np.unique(sv_id)
-
-    sv = [i for i in range(len(streams))]
-
-    sv_it = np.array([str(item.split(":")[0]) for item in sv_content])
-    sv_cnt = np.array([int(item.split(":")[2]) for item in sv_content])
-    sv_timestamps = np.array([int(item.split(":")[3]) for item in sv_content])
-
-    for stream in streams:
-        id_occurrences = np.where(sv_id == f"{stream:04x}")
-
-        sv_it_occurrences = sv_it[id_occurrences]
-        sv_cnt_occurrences = sv_cnt[id_occurrences]
-        sv_timestamps_occurrences = sv_timestamps[id_occurrences]
-
-        sv[stream_number] = [sv_it_occurrences, sv_cnt_occurrences, sv_timestamps_occurrences]
-
-        stream_number += 1
-
-    if stream_number == 0:
-        print(f"Fatal: no streams found in {sv_file_path}."
-              "Is the file empty or is the -S argument correct?")
-        exit(1)
-
-
-    return sv, stream_names
-
 def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_2):
 # Verify that both sv files are comparables. It means:
 # - contains the same number of streams
@@ -286,8 +253,13 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             """
         )
 
-        pub_sv, _ = extract_sv(pub, streams)
-        sub_sv, sub_stream_names = extract_sv(sub, streams)
+        pub_sv = []
+        sub_sv = []
+        sub_stream_names = []
+        with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor:
+            pub_sv, _ = pub_extractor.extract_sv(streams)
+            sub_sv, sub_stream_names = sub_extractor.extract_sv(streams)
+
         verify_sv_logs_consistency(pub_sv, sub_sv, pub, sub)
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
@@ -314,7 +286,11 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         )
 
         if hyp is not None:
-            hyp_sv, hyp_stream_names = extract_sv(hyp, streams)
+            hyp_sv = []
+            hyp_stream_names = []
+            with SvExtractor(hyp) as hyp_extractor:
+                hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams)
+
             verify_sv_logs_consistency(pub_sv, hyp_sv, pub, hyp)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
