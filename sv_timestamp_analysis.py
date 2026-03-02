@@ -12,6 +12,83 @@ import pandas as pd
 GREEN_COLOR = "#90EE90"
 RED_COLOR = "#F08080"
 
+class SvExtractor:
+    def __init__(self, sv_file_path):
+        self.sv_file_path = sv_file_path
+
+    def __enter__(self):
+        self.sv_file = open(self.sv_file_path, "r", encoding="utf-8")
+        self._last_line = self.sv_file.readline() 
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.sv_file.close()
+        return False
+
+    def extract_sv(self, streams, nb_iterations=0):
+        """Extract a given number of SV timestamp data iterations from the SV data file.
+
+        Args:
+            streams (list): of stream IDs to extract
+            nb_iterations (int, optional): Number of SV iterations to extract.
+                Defaults to 0 which means to extract until the end of the file.
+
+        Returns:
+            A tuple containing:
+            * A list of numpy arrays with extracted SV data per given stream.
+              Index 0 has data for the first given stream, index 1 for the second, etc...
+              For each stream, the data is as follows:
+                * Index 0: numpy array of iteration number for each SV.
+                * Index 1: numpy array of smpCnt for each SV.
+                * Index 2: numpy array of timestamp for each SV.
+            * The stream IDs found in the file. Might differ from the given streams.
+        """
+
+        if not streams:
+            raise ValueError("Invalid or empty list of streams found, the -S argument might be incorrect")
+
+        sv_content = []
+        stop_parsing = False
+        stop_iteration = 0
+
+        def parse(line):
+            tmp = line.rstrip().split(':')
+            return (int(tmp[0]), str(tmp[1]), int(tmp[2]), int(tmp[3]))
+
+        if self._last_line:
+            sv_content.append(parse(self._last_line))
+            if nb_iterations > 0:
+                stop_iteration = sv_content[0][0] + nb_iterations
+        else:
+            # EOF was already reached, nothing should be parsed
+            stop_parsing = True
+
+        while not stop_parsing:
+            line = self.sv_file.readline()
+            if line:
+                sv = parse(line)
+                if stop_iteration == 0 or sv[0] < stop_iteration:
+                    sv_content.append(sv)
+                    continue
+
+            # EOF or stop_iteration reached
+            self._last_line = line
+            stop_parsing = True
+
+        sv_it = np.array([i[0] for i in sv_content])
+        sv_id = np.array([i[1] for i in sv_content])
+        sv_cnt = np.array([i[2] for i in sv_content])
+        sv_timestamps = np.array([i[3] for i in sv_content])
+
+        stream_names = np.unique(sv_id)
+        sv = []
+        for s in streams:
+            ids_occur = np.where(sv_id == f"{s:04x}")
+            sv.append([sv_it[ids_occur], sv_cnt[ids_occur], sv_timestamps[ids_occur]])
+
+        return sv, stream_names
+
+
 def extract_sv(sv_file_path, streams):
     stream_number = 0
     with open(f"{sv_file_path}", "r", encoding="utf-8") as sv_file:
