@@ -90,20 +90,12 @@ class SvExtractor:
 
 
 def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_2):
-# Verify that both sv files are comparables. It means:
-# - contains the same number of streams
-# - contains the same number of iterations
+# Verify that both sv files are comparables. It means that they contain the same number of iterations.
 # If they do not have the same number of iterations, it can mean :
 # - packets reordering
 # - too many SV lost.
-# In both cases, the latency cannot be computed, because a received SV cannot
+# In that case, the latency cannot be computed, because a received SV cannot
 # be linked correctly to a published SV.
-
-    # Check for same number of streams
-    if len(sv_data_1) != len(sv_data_2):
-        raise ValueError(
-            f"{sv_filename_1} has {len(sv_data_1)} stream, but {sv_filename_2} has {len(sv_data_2)}'"
-        )
 
     # Check last iteration counter
     for stream in range(0, len(sv_data_1)):
