@@ -289,20 +289,35 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
         verify_sv_logs_consistency(pub, sub)
 
-        pub_sv = []
-        sub_sv = []
-        sub_stream_names = []
+        latencies_df = [ pd.DataFrame({"latency": [], "count": []}) for _ in range(len(streams)) ]
+        total_sv_drop = 0
+
         with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor:
-            pub_sv, _ = pub_extractor.extract_sv(streams)
-            sub_sv, sub_stream_names = sub_extractor.extract_sv(streams)
+            chunk_size = 100
 
-        latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
-        sub_pacing = compute_pacing(sub_sv)
+            pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
+            sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
 
-        latencies_df = []
-        for i in range(len(streams)):
-            val, counts = np.unique(latencies[i], return_counts=True)
-            latencies_df.append(pd.DataFrame({"latency": val, "count": counts}))
+            while len(sub_stream_names) > 0:
+                chunk_latencies, sv_drop = compute_latency(pub_sv, sub_sv)
+
+                total_sv_drop += sv_drop
+
+                for i in range(len(streams)):
+                    val, counts = np.unique(chunk_latencies[i], return_counts=True)
+                    df = pd.DataFrame({"latency": val, "count": counts})
+
+                    # Merge chunk latencies with global counts
+                    latencies_df[i] = pd.merge(latencies_df[i], df, on="latency", how="outer", suffixes=("", "_chunk"))
+                    latencies_df[i] = latencies_df[i].fillna(0) # Outer merge introduces NaN when a latency doesn't exist in one of the two tables
+                    latencies_df[i]["count"] += latencies_df[i].pop("count_chunk")
+
+                    # Introduction of NaN values in merge changed data type to float64
+                    latencies_df[i] = latencies_df[i].astype(np.int64)
+
+                # Next chunk
+                pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
+                sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
 
         for i in range(len(streams)):
             if display_threshold:
