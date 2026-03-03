@@ -275,14 +275,14 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             """
         )
 
+        verify_sv_logs_consistency(pub, sub)
+
         pub_sv = []
         sub_sv = []
         sub_stream_names = []
         with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor:
             pub_sv, _ = pub_extractor.extract_sv(streams)
             sub_sv, sub_stream_names = sub_extractor.extract_sv(streams)
-
-        verify_sv_logs_consistency(pub, sub)
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
@@ -308,12 +308,13 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         )
 
         if hyp is not None:
+            verify_sv_logs_consistency(pub, hyp)
+
             hyp_sv = []
             hyp_stream_names = []
             with SvExtractor(hyp) as hyp_extractor:
                 hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams)
 
-            verify_sv_logs_consistency(pub, hyp)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
             adoc_file.write(
