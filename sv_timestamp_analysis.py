@@ -4,6 +4,7 @@
 
 import os
 import argparse
+import subprocess
 import matplotlib.pyplot as plt
 import textwrap
 import numpy as np
@@ -89,21 +90,50 @@ class SvExtractor:
         return sv, stream_names
 
 
-def verify_sv_logs_consistency(sv_data_1, sv_data_2, sv_filename_1, sv_filename_2):
-# Verify that both sv files are comparables. It means that they contain the same number of iterations.
-# If they do not have the same number of iterations, it can mean :
-# - packets reordering
-# - too many SV lost.
-# In that case, the latency cannot be computed, because a received SV cannot
-# be linked correctly to a published SV.
+def verify_sv_logs_consistency(sv_filename_1, sv_filename_2):
+    """Verify that both SV files are comparables. It means that they contain the same number of iterations.
 
-    # Check last iteration counter
-    for stream in range(0, len(sv_data_1)):
-        # Compare last value of the iteration columns
-        if sv_data_1[stream][0][-1] != sv_data_2[stream][0][-1]:
-            raise ValueError(
-                f"{sv_filename_1} and {sv_filename_2} don't have the same number of iterations"
-            )
+    If they do not have the same number of iterations, it can mean:
+    * Packets were re-ordered.
+    * Too many SV were lost.
+    In that case, latencies cannot be computed, because some received SV cannot
+    be linked correctly to a published SV.
+
+    Raises:
+        ValueError: If the two SV files do not have the same number of iterations.
+        CalledProcessError: If the "tail" command failed.
+
+    Returns:
+        None
+    """
+
+    tail_1 = subprocess.run(
+        ["tail", "-n", "1", sv_filename_1],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    tail_2 = subprocess.run(
+        ["tail", "-n", "1", sv_filename_2],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    last_it_1 = tail_1.stdout.rstrip().split(":")[0]
+    last_it_2 = tail_2.stdout.rstrip().split(":")[0]
+
+    if not last_it_1:
+        raise ValueError(f"{sv_filename_1} has no valid data.")
+    if not last_it_2:
+        raise ValueError(f"{sv_filename_2} has no valid data.")
+
+    if last_it_1 != last_it_2:
+        raise ValueError(
+            f"{sv_filename_1} has {last_it_1} iterations but {sv_filename_2} has {last_it_2}"
+        )
 
 
 def handle_sv_drop(pub_stream, sub_stream):
@@ -252,7 +282,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             pub_sv, _ = pub_extractor.extract_sv(streams)
             sub_sv, sub_stream_names = sub_extractor.extract_sv(streams)
 
-        verify_sv_logs_consistency(pub_sv, sub_sv, pub, sub)
+        verify_sv_logs_consistency(pub, sub)
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
@@ -283,7 +313,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             with SvExtractor(hyp) as hyp_extractor:
                 hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams)
 
-            verify_sv_logs_consistency(pub_sv, hyp_sv, pub, hyp)
+            verify_sv_logs_consistency(pub, hyp)
             hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
             hyp_pace = compute_pacing(hyp_sv)
             adoc_file.write(
