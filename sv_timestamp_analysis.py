@@ -195,25 +195,37 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
-def save_latency_histogram(values, streams, sub_name, output, threshold=0):
+def save_latency_histogram(df, stream, sub_name, output, threshold=0):
+    """Save a latency histogram for an SV stream from a latency dataframe.
 
-    for stream, value in zip(streams, values):
-        plt.hist(value, bins=20, alpha=0.7)
+    Args:
+        df (DataFrame): Latency dataframe.
+        stream (int): SV stream ID.
+        sub_name (str): Subscriber name.
+        output (str): Output path where the histogram will be saved in a "results" subdirectory.
+        threshold (int, optional): Threshold value that will be represented as a vertical red line.
+            If <= 0, this threshold isn't showed. Defaults to 0.
 
-        plt.xlabel(f"Latency (us)")
-        plt.ylabel("Occurrences")
-        plt.yscale('log')
-        plt.title(f"{sub_name} SV stream 0x{stream:04x} latency histogram")
+    Returns:
+        str: Full file path of the save histogram.
+    """
 
-        if threshold > 0:
-            plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
-            plt.legend()
+    plt.hist(df["latency"], bins=20, weights=df["count"], alpha=0.7)
 
-        filename = f"histogram_{sub_name}_stream_{stream}_latency.png"
-        filepath = os.path.realpath(f"{output}/results/{filename}")
-        plt.savefig(filepath)
-        print(f"Histogram saved as {filename}.")
-        plt.close()
+    plt.xlabel("Latency (us)")
+    plt.ylabel("Occurrences")
+    plt.yscale("log")
+    plt.title(f"{sub_name} SV stream 0x{stream:04x} latency histogram")
+
+    if threshold > 0:
+        plt.axvline(x=threshold, color='red', linestyle='dashed', linewidth=2, label=f'Limit ({threshold} us)')
+        plt.legend()
+
+    filename = f"histogram_{sub_name}_stream_{stream}_latency.png"
+    filepath = os.path.realpath(f"{output}/results/{filename}")
+    plt.savefig(filepath)
+    print(f"Histogram saved as {filename}.")
+    plt.close()
 
     return filepath
 
@@ -286,10 +298,18 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
         latencies, total_sv_drop = compute_latency(pub_sv, sub_sv)
         sub_pacing = compute_pacing(sub_sv)
-        if display_threshold:
-            save_latency_histogram(latencies, streams, sub_name, output, max_latency_threshold)
-        else:
-            save_latency_histogram(latencies, streams, sub_name, output)
+
+        latencies_df = []
+        for i in range(len(streams)):
+            val, counts = np.unique(latencies[i], return_counts=True)
+            latencies_df.append(pd.DataFrame({"latency": val, "count": counts}))
+
+        for i in range(len(streams)):
+            if display_threshold:
+                save_latency_histogram(latencies_df[i], streams[i], sub_name, output, max_latency_threshold)
+            else:
+                save_latency_histogram(latencies_df[i], streams[i], sub_name, output)
+
         maxlat= compute_max(latencies[0])
         minlat = compute_min(latencies[0])
         adoc_file.write(
