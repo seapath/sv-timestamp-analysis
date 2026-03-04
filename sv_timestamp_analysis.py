@@ -215,6 +215,45 @@ def compute_average(values):
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
 
+def add_counts_to_df(df, values):
+    """Count occurrences of each unique integer values in "values" and add them to a dataframe holding counts.
+
+    Args:
+        df (DataFrame): DataFrame holding initial counts of values.
+            It should have 2 columns:
+            * One "count" column where counts from "values" will be added.
+            * One column which holds the values corresponding to the counts.
+        values (array-like): Numpy array or list of integer values to count and add to the DataFrame.
+
+    Raises
+        ValueError: If "df" doesn't have exactly 2 columns, with one labeled "count".
+
+    Returns:
+        DataFrame: DataFrame with counts from "values" added to "df" counts.
+    """
+
+    if len(df.columns) != 2:
+        raise ValueError("DataFrame doesn't have exactly 2 columns")
+    if "count" not in df.columns:
+        raise ValueError("DataFrame doesn't have a 'count' column")
+    
+    vals, counts = np.unique(values, return_counts=True)
+
+    vals_columns = df.columns.drop("count")[0]
+    counts_df = pd.DataFrame({vals_columns: vals, "count": counts})
+
+    df = pd.merge(df, counts_df, on=vals_columns, how="outer", suffixes=("", "_add"))
+
+    # Outer merge introduces NaN when a latency doesn't exist in one of the two tables
+    df = df.fillna(0)
+
+    df["count"] += df.pop("count_add")
+
+    # Introduction of NaN values in merge changed data type to float64
+    df = df.astype(np.int64)
+
+    return df
+
 def save_latency_histogram(df, stream, sub_name, output, threshold=0):
     """Save a latency histogram for an SV stream from a latency dataframe.
 
@@ -321,21 +360,11 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
 
             while len(sub_stream_names) > 0:
+                # Latencies
                 chunk_latencies, sv_drop = compute_latency(pub_sv, sub_sv)
-
                 total_sv_drop += sv_drop
-
                 for i in range(len(streams)):
-                    val, counts = np.unique(chunk_latencies[i], return_counts=True)
-                    df = pd.DataFrame({"latency": val, "count": counts})
-
-                    # Merge chunk latencies with global counts
-                    latencies_df[i] = pd.merge(latencies_df[i], df, on="latency", how="outer", suffixes=("", "_chunk"))
-                    latencies_df[i] = latencies_df[i].fillna(0) # Outer merge introduces NaN when a latency doesn't exist in one of the two tables
-                    latencies_df[i]["count"] += latencies_df[i].pop("count_chunk")
-
-                    # Introduction of NaN values in merge changed data type to float64
-                    latencies_df[i] = latencies_df[i].astype(np.int64)
+                    latencies_df[i] = add_counts_to_df(latencies_df[i], chunk_latencies[i])
 
                 # Pacing
                 if last_sub_sv is not None:
@@ -344,16 +373,7 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                     chunk_sub_pacing = compute_pacing(sub_sv)
 
                 for i in range(len(streams)):
-                    val, counts = np.unique(chunk_sub_pacing[i], return_counts=True)
-                    df = pd.DataFrame({"pacing": val, "count": counts})
-
-                    # Merge chunk pacing with global counts
-                    sub_pacing_df[i] = pd.merge(sub_pacing_df[i], df, on="pacing", how="outer", suffixes=("", "_chunk"))
-                    sub_pacing_df[i] = sub_pacing_df[i].fillna(0) # Outer merge introduces NaN when a latency doesn't exist in one of the two tables
-                    sub_pacing_df[i]["count"] += sub_pacing_df[i].pop("count_chunk")
-
-                    # Introduction of NaN values in merge changed data type to float64
-                    sub_pacing_df[i] = sub_pacing_df[i].astype(np.int64)
+                    sub_pacing_df[i] = add_counts_to_df(sub_pacing_df[i], chunk_sub_pacing[i])
 
                 last_sub_sv = [s[2][-1] for s in sub_sv]
 
