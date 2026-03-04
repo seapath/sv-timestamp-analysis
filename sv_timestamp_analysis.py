@@ -18,12 +18,18 @@ class SvExtractor:
         self.sv_file_path = sv_file_path
 
     def __enter__(self):
-        self.sv_file = open(self.sv_file_path, "r", encoding="utf-8")
-        self._last_line = self.sv_file.readline() 
+        if self.sv_file_path is not None:
+            self.sv_file = open(self.sv_file_path, "r", encoding="utf-8")
+            self._last_line = self.sv_file.readline()
+        else:
+            self.sv_file = None
+
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        self.sv_file.close()
+        if self.sv_file is not None:
+            self.sv_file.close()
+
         return False
 
     def extract_sv(self, streams, nb_iterations=0):
@@ -47,6 +53,9 @@ class SvExtractor:
 
         if not streams:
             raise ValueError("Invalid or empty list of streams found, the -S argument might be incorrect")
+
+        if self.sv_file is None:
+            raise ValueError("No SV file opened, cannot extract SV data")
 
         sv_content = []
         stop_parsing = False
@@ -352,19 +361,37 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         total_sv_drop = 0
         sub_pacing_df = [ pd.DataFrame({"pacing": [], "count": []}) for _ in range(len(streams)) ]
 
-        with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor:
+        if hyp is not None:
+            verify_sv_logs_consistency(pub, hyp)
+            hyp_latencies_df = [ pd.DataFrame({"latency": [], "count": []}) for _ in range(len(streams)) ] 
+            hyp_total_sv_drop = 0
+            hyp_pacing_df = [ pd.DataFrame({"pacing": [], "count": []}) for _ in range(len(streams)) ]
+
+
+        with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor, SvExtractor(hyp) as hyp_extractor:
             chunk_size = 100
             last_sub_sv = None
+            last_hyp_sv = None
 
             pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
             sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
+            if hyp is not None:
+                hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, chunk_size)
+
 
             while len(sub_stream_names) > 0:
                 # Latencies
                 chunk_latencies, sv_drop = compute_latency(pub_sv, sub_sv)
                 total_sv_drop += sv_drop
+                if hyp is not None:
+                    chunk_hyp_latencies, hyp_sv_drop = compute_latency(pub_sv, hyp_sv)
+                    hyp_total_sv_drop += hyp_sv_drop
+
                 for i in range(len(streams)):
                     latencies_df[i] = add_counts_to_df(latencies_df[i], chunk_latencies[i])
+                    if hyp is not None:
+                        hyp_latencies_df[i] = add_counts_to_df(hyp_latencies_df[i], chunk_hyp_latencies[i])
+
 
                 # Pacing
                 if last_sub_sv is not None:
@@ -377,9 +404,23 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
                 last_sub_sv = [s[2][-1] for s in sub_sv]
 
+                if hyp is not None:
+                    if last_hyp_sv is not None:
+                        chunk_hyp_pacing = compute_pacing(hyp_sv, prepend=last_hyp_sv)
+                    else:
+                        chunk_hyp_pacing = compute_pacing(hyp_sv)
+
+                    for i in range(len(streams)):
+                        hyp_pacing_df[i] = add_counts_to_df(hyp_pacing_df[i], chunk_hyp_pacing[i])
+
+                    last_hyp_sv = [s[2][-1] for s in hyp_sv]
+
+
                 # Next chunk
                 pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
                 sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
+                if hyp is not None:
+                    hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, chunk_size)
 
         for i in range(len(streams)):
             if display_threshold:
@@ -405,15 +446,6 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
         )
 
         if hyp is not None:
-            verify_sv_logs_consistency(pub, hyp)
-
-            hyp_sv = []
-            hyp_stream_names = []
-            with SvExtractor(hyp) as hyp_extractor:
-                hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams)
-
-            hyp_latencies, total_sv_drop = compute_latency(pub_sv, hyp_sv)
-            hyp_pace = compute_pacing(hyp_sv)
             adoc_file.write(
                     hypervisor_lines.format(
                         _output_=output,
