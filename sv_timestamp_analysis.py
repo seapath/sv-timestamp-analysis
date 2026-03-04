@@ -176,11 +176,31 @@ def compute_latency(pub_sv, sub_sv):
 
     return latencies, sv_drop
 
-def compute_pacing(sv):
-    streams = len(sv)
+def compute_pacing(sv, prepend=None):
+    """Compute the pacing of some SV data.
+
+    Args:
+        sv (list): SV data as extracted by SvExtractor.extract_sv().
+            List of N numpy arrays of shape (3, M) where:
+            * N is the number of SV streams.
+            * M is the number of SV for the stream.
+        prepend (int, list, optional): List of N values to prepend to sv before computing the pacing.
+            This is passed to np.diff() "prepend" argument.
+            This is typically useful when processing data in chunks, and that the last value of
+            the previous chunk is needed to compute the pacing of the first value of the current chunk.
+            Defaults to None.
+
+    Returns:
+        list: List of N numpy arrays with pacing values.
+    """
+
     pacing = [[0]] * len(sv)
-    for stream in range(0, streams):
-        pacing[stream] = np.diff(sv[stream][2])
+    for i in range(len(sv)):
+        if prepend is not None:
+            pacing[i] = np.diff(sv[i][2], prepend=prepend[i])
+        else:
+            pacing[i] = np.diff(sv[i][2])
+
     return pacing
 
 def compute_min(values):
@@ -291,9 +311,11 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
         latencies_df = [ pd.DataFrame({"latency": [], "count": []}) for _ in range(len(streams)) ]
         total_sv_drop = 0
+        sub_pacing_df = [ pd.DataFrame({"pacing": [], "count": []}) for _ in range(len(streams)) ]
 
         with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor:
             chunk_size = 100
+            last_sub_sv = None
 
             pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
             sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
@@ -314,6 +336,26 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
                     # Introduction of NaN values in merge changed data type to float64
                     latencies_df[i] = latencies_df[i].astype(np.int64)
+
+                # Pacing
+                if last_sub_sv is not None:
+                    chunk_sub_pacing = compute_pacing(sub_sv, prepend=last_sub_sv)
+                else:
+                    chunk_sub_pacing = compute_pacing(sub_sv)
+
+                for i in range(len(streams)):
+                    val, counts = np.unique(chunk_sub_pacing[i], return_counts=True)
+                    df = pd.DataFrame({"pacing": val, "count": counts})
+
+                    # Merge chunk pacing with global counts
+                    sub_pacing_df[i] = pd.merge(sub_pacing_df[i], df, on="pacing", how="outer", suffixes=("", "_chunk"))
+                    sub_pacing_df[i] = sub_pacing_df[i].fillna(0) # Outer merge introduces NaN when a latency doesn't exist in one of the two tables
+                    sub_pacing_df[i]["count"] += sub_pacing_df[i].pop("count_chunk")
+
+                    # Introduction of NaN values in merge changed data type to float64
+                    sub_pacing_df[i] = sub_pacing_df[i].astype(np.int64)
+
+                last_sub_sv = [s[2][-1] for s in sub_sv]
 
                 # Next chunk
                 pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
