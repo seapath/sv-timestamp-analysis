@@ -146,11 +146,21 @@ def verify_sv_logs_consistency(sv_filename_1, sv_filename_2):
 
 
 def handle_sv_drop(pub_stream, sub_stream):
-    # Compute the latency on a stream with sv lost
-    # All the magic remains in the pandas dataframe merge function using the
-    # inner method to combine tables. This function handles the missalignement
-    # between subscriber and publisher values.
-    # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.merge.html
+    """Compute the latency on a stream with sv drops.
+
+    All the magic remains in the pandas.DataFrame.merge() method using the
+    inner method to combine tables. This function handles the misalignment
+    between subscriber and publisher values.
+
+    Args:
+        pub_stream (numpy-array): publisher SV data for one stream as extracted by SvExtractor.extract_sv().
+            Shape is (3, N), where N is the number of SV.
+        sub_stream (numpy-array): subscriber SV data for one stream as extracted by SvExtractor.extract_sv().
+            Shape is (3, N), where N is the number of SV.
+
+    Returns:
+        numpy-array: 1d numpy-array of length N with the computed latencies for the SV stream.
+    """
 
     columns = ["iteration", "counter", "time"]
     pub_data = pd.DataFrame(pub_stream, index=columns).T
