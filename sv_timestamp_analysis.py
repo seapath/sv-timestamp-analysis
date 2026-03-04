@@ -218,8 +218,8 @@ def compute_min(values):
 def compute_max(values):
     return np.max(values) if values.size > 0 else None
 
-def compute_average(values):
-    return np.round(np.mean(values)) if values.size > 0 else None
+def compute_average(values, weights=None):
+    return np.round(np.average(values, weights=weights)) if values.size > 0 else None
 
 def compute_neglat(values):
     return np.count_nonzero(values < 0)
@@ -428,20 +428,20 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
             else:
                 save_latency_histogram(latencies_df[i], streams[i], sub_name, output)
 
-        maxlat= compute_max(latencies[0])
-        minlat = compute_min(latencies[0])
+        maxlat= compute_max(latencies_df[0]["latency"])
+        minlat = compute_min(latencies_df[0]["latency"])
         adoc_file.write(
                 subcriber_lines.format(
                     _output_=output,
                     _subscriber_name_=sub_name,
-                    _stream_id_= sub_stream_names[0],
+                    _stream_id_= streams[0],
                     _stream_ = streams[0],
                     _minlat_= minlat,
                     _maxlat_= maxlat,
-                    _avglat_= compute_average(latencies[0]),
-                    _minpace_= compute_min(sub_pacing[0]),
-                    _maxpace_= compute_max(sub_pacing[0]),
-                    _avgpace_= compute_average(sub_pacing[0]),
+                    _avglat_= compute_average(latencies_df[0]["latency"], latencies_df[0]["count"]),
+                    _minpace_= compute_min(sub_pacing_df[0]["pacing"]),
+                    _maxpace_= compute_max(sub_pacing_df[0]["pacing"]),
+                    _avgpace_= compute_average(sub_pacing_df[0]["pacing"], sub_pacing_df[0]["count"]),
                 )
         )
 
@@ -450,14 +450,14 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
                     hypervisor_lines.format(
                         _output_=output,
                         _hypervisor_name_=hyp_name,
-                        _stream_id_= hyp_stream_names[0],
+                        _stream_id_= streams[0],
                         _stream_ = streams[0],
-                        _minlat_= compute_min(hyp_latencies[0]),
+                        _minlat_= compute_min(hyp_latencies_df[0]["latency"]),
                         _maxlat_= maxlat,
-                        _avglat_= compute_average(hyp_latencies[0]),
-                        _minpace_= compute_min(hyp_pace[0]),
-                        _maxpace_= compute_max(hyp_pace[0]),
-                        _avgpace_= compute_average(hyp_pace[0]),
+                        _avglat_= compute_average(hyp_latencies_df[0]["latency"], hyp_latencies_df[0]["count"]),
+                        _minpace_= compute_min(hyp_pacing_df[0]["pacing"]),
+                        _maxpace_= compute_max(hyp_pacing_df[0]["pacing"]),
+                        _avgpace_= compute_average(hyp_pacing_df[0]["pacing"], hyp_pacing_df[0]["count"]),
                     )
             )
 
