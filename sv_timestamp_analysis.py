@@ -163,25 +163,39 @@ def handle_sv_drop(pub_stream, sub_stream):
 
 
 def compute_latency(pub_sv, sub_sv):
+    """Compute latencies between publisher SV timestamps and subscriber SV timestamps.
 
-    latencies = [[]] * len(pub_sv)
+    Args:
+        pub_sv (list): SV data for the publisher side as extracted by SvExtractor.extract_sv().
+            Should be the same length as "sub_sv.
+        sub_sv (list): SV data for the subscriber side as extracted by SvExtractor.extract_sv().
+            Should be the same length as "pub_sv.
+
+    Raises:
+        ValueError: If "pub_sv" and "sub_sv" do not have the same length.
+
+    Returns:
+        (list, int): Tuple containing:
+            * A list of numpy arrays with latency values per stream.
+            * The total number of SV that were dropped (i.e. that couldn't be linked to a published SV).
+                This number is global to all streams.
+    """
+
+    latencies = [[] for _ in range(len(pub_sv))]
     sv_drop = 0
 
-    for stream in range(0, len(pub_sv)):
-
-        pub_sv_stream = pub_sv[stream]
-        sub_sv_stream = sub_sv[stream]
+    for (pub_sv_stream, sub_sv_stream, latencies_stream) in zip(pub_sv, sub_sv, latencies, strict=True):
         sv_drop_stream = abs(len(pub_sv_stream[0]) - len(sub_sv_stream[0]))
         sv_drop += sv_drop_stream
 
         if sv_drop_stream > 0:
-            # if sv drop is detected on this stream, pandas will be used to
-            # reconstruct the link between data and compute the latency
-            # It will take additionnal times to convert from numpy to pandas,
+            # If sv drop is detected on this stream, pandas will be used to
+            # reconstruct the link between data and compute the latency.
+            # It will take additional time to convert from numpy to pandas,
             # so this is only done when there is sv drop.
-            latencies[stream] = handle_sv_drop(pub_sv_stream, sub_sv_stream)
+            latencies_stream[:] = handle_sv_drop(pub_sv_stream, sub_sv_stream)
         else:
-            latencies[stream] = sub_sv_stream[2] - pub_sv_stream[2]
+            latencies_stream[:] = sub_sv_stream[2] - pub_sv_stream[2]
 
     return latencies, sv_drop
 
