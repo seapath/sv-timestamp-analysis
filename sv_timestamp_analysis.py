@@ -321,7 +321,7 @@ def save_latency_histogram(df, stream, sub_name, output, threshold=0):
 
     return filepath
 
-def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latency_threshold, display_threshold):
+def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latency_threshold, display_threshold, processing_window=100):
     if not os.path.exists(f'{output}/results'):
         os.makedirs(f'{output}/results')
 
@@ -393,14 +393,13 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
 
         with SvExtractor(pub) as pub_extractor, SvExtractor(sub) as sub_extractor, SvExtractor(hyp) as hyp_extractor:
-            chunk_size = 100
             last_sub_sv = None
             last_hyp_sv = None
 
-            pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
-            sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
+            pub_sv, _ = pub_extractor.extract_sv(streams, processing_window)
+            sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, processing_window)
             if hyp is not None:
-                hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, chunk_size)
+                hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, processing_window)
 
 
             while len(sub_stream_names) > 0:
@@ -441,10 +440,10 @@ def generate_adoc(pub, hyp, sub, streams, hyp_name, sub_name, output, max_latenc
 
 
                 # Next chunk
-                pub_sv, _ = pub_extractor.extract_sv(streams, chunk_size)
-                sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, chunk_size)
+                pub_sv, _ = pub_extractor.extract_sv(streams, processing_window)
+                sub_sv, sub_stream_names = sub_extractor.extract_sv(streams, processing_window)
                 if hyp is not None:
-                    hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, chunk_size)
+                    hyp_sv, hyp_stream_names = hyp_extractor.extract_sv(streams, processing_window)
 
         for i in range(len(streams)):
             if display_threshold:
@@ -589,6 +588,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Display max latency threshold on histograms if set"
     )
+    parser.add_argument(
+        "--processing_window",
+        default=100,
+        type=int,
+        help="Number of SV iteration to process at once. Decreasing this value reduces memory usage."
+    )
 
     args = parser.parse_args()
     if not args.hypervisor_name:
@@ -610,4 +615,5 @@ if __name__ == "__main__":
         args.output,
         args.max_latency,
         args.display_max_latency,
+        args.processing_window,
     )
