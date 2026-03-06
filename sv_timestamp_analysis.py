@@ -116,20 +116,24 @@ def verify_sv_logs_consistency(sv_filename_1, sv_filename_2):
         None
     """
 
-    tail_1 = subprocess.run(
-        ["tail", "-n", "1", sv_filename_1],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    tail_2 = subprocess.run(
-        ["tail", "-n", "1", sv_filename_2],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    try:
+        tail_1 = subprocess.run(
+            ["tail", "-n", "1", sv_filename_1],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        tail_2 = subprocess.run(
+            ["tail", "-n", "1", sv_filename_2],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except subprocess.CalledProcessError as e:
+        print(e.stderr, file=sys.stderr)
+        raise
 
     last_it_1 = tail_1.stdout.rstrip().split(":")[0]
     last_it_2 = tail_2.stdout.rstrip().split(":")[0]
